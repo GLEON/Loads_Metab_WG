@@ -1,0 +1,51 @@
+# lake metabolism estimates for GLEON Catchment and metabolism group 
+# 2015-05-19; 
+
+library(LakeMetabolizer)
+# library(xts) # useful for timeseries visulization 
+
+dir<-'/Users/Jake/Dropbox/GLEON Catchment & Lake Metabolism/Data/' # directory where data is stored 
+lake<-'Lilli' # current lake for metabolism estimates 
+
+# load time series metabolism data 
+doobs<-load.ts(file.path(dir,lake,paste(lake,'_doobs.txt',sep='')))
+wtr<-load.ts(file.path(dir,lake,paste(lake,'_wtr.txt',sep='')))
+# colnames(wtr)[2]<-'wtr0.1' # changing 0 meter water temp to 0.1 for Lilli 
+wnd<-load.ts(file.path(dir,lake,paste(lake,'_wnd.txt',sep='')))
+par<-load.ts(file.path(dir,lake,paste(lake,'_par.txt',sep='')))
+
+# plot(doobs$doobs)
+# plot(wtr$wtr1.0)
+# plot(wnd$wnd)
+# plot(par$par)
+
+# calculate DO at saturation 
+do.sat<-o2.at.sat(wtr[,c('datetime','wtr1.0')],altitude = 59) # check for lake specific altitude and do depth 
+
+# calculate k.gas using vachon  
+U10<-wind.scale(wnd, wnd.z = 3.5) # scaling measured wind height to wind at 10 meters 
+k600<-k.vachon(ts.data = U10,lake.area = 6260000) # estimating k600 with gas coefficient model 
+colnames(k600)<-c('datetime','k600')
+k.gas<-k600.2.kGAS(merge(k600,wtr[,c('datetime','wtr1.0')])) # converting k600 to k.O2 
+
+# calculating z.mix ; LOOK INTO NA'S => MAY BE BECAUSE Z.MIX IS AT BOTTOM OF LAKE 
+# -Inf means that all data is missing for given time point 
+z.mix<-ts.meta.depths(wtr,na.rm = T,seasonal=T) 
+colnames(z.mix)<-c('datetime','z.mix','bottom')
+# z.mix$z.mix<-ifelse(is.na(z.mix$z.mix),yes = 18,no = z.mix$z.mix) # forcing NA's to be to bottom of lake 
+# z.mix$z.mix<-ifelse(is.infinite(z.mix$z.mix),yes = ,no = z.mix$z.mix) # fix infinite values 
+
+# merge variables into one data frame 
+ts.data<-doobs
+ts.data<-merge(ts.data,do.sat)
+ts.data<-merge(ts.data,par)
+ts.data<-merge(ts.data,k.gas)
+ts.data<-merge(ts.data,wtr[,c('datetime','wtr1.0')])
+ts.data<-merge(ts.data,z.mix)
+
+# metabolism function requires do.obs, do.sat, irr, k.gas, z.mix, wtr (wtr at depth of DO probe )
+metab.out<-metab(ts.data,method = 'mle',wtr.name = 'wtr1.0',irr.name = 'par',do.obs.name = 'doobs')
+
+windows()
+plot(metab.out$GPP~metab.out$doy,type='o')
+abline(0,0,lwd=2,lty=2,col='grey')
