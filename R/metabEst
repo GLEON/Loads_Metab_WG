@@ -1,5 +1,6 @@
 # lake metabolism estimates for GLEON Catchment and metabolism group 
 # 2015-05-19; 
+# updating 
 
 library(LakeMetabolizer)
 # library(xts) # useful for timeseries visulization 
