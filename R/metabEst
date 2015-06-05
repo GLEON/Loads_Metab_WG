@@ -42,6 +42,8 @@ ts.data<-merge(ts.data,par)
 ts.data<-merge(ts.data,k.gas)
 ts.data<-merge(ts.data,wtr[,c('datetime','wtr1.0')])
 ts.data<-merge(ts.data,z.mix)
+# using a flux dummy (flux to atmosphere is 0 if z.mix is shallower than sensor (sensor placement about 0.5m ))
+ts.data$k.gas<-ifelse(ts.data$z.mix<1,0,ts.data$k.gas)
 
 # metabolism function requires do.obs, do.sat, irr, k.gas, z.mix, wtr (wtr at depth of DO probe )
 metab.out<-metab(ts.data,method = 'mle',wtr.name = 'wtr1.0',irr.name = 'par',do.obs.name = 'doobs')
